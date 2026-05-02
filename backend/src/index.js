@@ -68,37 +68,6 @@ export default {
             });
           }
 
-          // 2. Send confirmation to customer (if email provided)
-          if (data.email) {
-            const customerEmailResponse = await fetch('https://api.resend.com/emails', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${env.RESEND_API_KEY}`
-              },
-              body: JSON.stringify({
-                from: 'S&E Clean <info@se-clean.de>',
-                to: data.email,
-                subject: `Eingangsbestätigung Ihrer Anfrage bei S&E Clean`,
-                html: `
-                  <h2>Vielen Dank für Ihre Anfrage!</h2>
-                  <p>Hallo ${data.name || ''},</p>
-                  <p>wir haben Ihre Kontaktanfrage erfolgreich erhalten und werden uns schnellstmöglich bei Ihnen melden.</p>
-                  <p><strong>Ihre übermittelten Daten:</strong></p>
-                  <p>Telefon: ${data.phone || 'Nicht angegeben'}</p>
-                  <p>Nachricht:<br>${(data.message || '').replace(/\n/g, '<br>')}</p>
-                  <br>
-                  <p>Mit freundlichen Grüßen<br>Ihr S&E Clean Team</p>
-                  <p><a href="https://www.se-clean.de">www.se-clean.de</a></p>
-                `
-              })
-            });
-            
-            if (!customerEmailResponse.ok) {
-               console.error("Failed to send customer confirmation:", await customerEmailResponse.text());
-            }
-          }
-
           console.log("Emails processed successfully!");
         } else {
           console.warn("RESEND_API_KEY is not set. Email not sent. Received data:", data);
