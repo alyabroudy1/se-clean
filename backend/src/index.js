@@ -37,33 +37,69 @@ export default {
 
         // Send email using Resend API
         if (env.RESEND_API_KEY) {
-          const emailResponse = await fetch('https://api.resend.com/emails', {
+          // 1. Send notification to owner
+          const ownerEmailResponse = await fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${env.RESEND_API_KEY}`
             },
             body: JSON.stringify({
-              from: 'S&E Clean Kontakt <onboarding@resend.dev>', // For production, use your verified domain here
+              from: 'S&E Clean Kontakt <info@se-clean.de>',
               to: 'info@se-clean.de',
+              reply_to: data.email || 'info@se-clean.de',
               subject: `Neue Kontaktanfrage von ${data.name || 'Unbekannt'}`,
               html: `
                 <h2>Neue Kontaktanfrage von der Webseite</h2>
                 <p><strong>Name:</strong> ${data.name || 'Nicht angegeben'}</p>
                 <p><strong>Telefonnummer:</strong> ${data.phone || 'Nicht angegeben'}</p>
+                <p><strong>E-Mail:</strong> ${data.email || 'Nicht angegeben'}</p>
                 <p><strong>Nachricht:</strong><br>${(data.message || '').replace(/\n/g, '<br>')}</p>
               `
             })
           });
 
-          if (!emailResponse.ok) {
-            const errText = await emailResponse.text();
-            console.error("Failed to send email:", errText);
-            // We'll still return success to the user so they don't get an ugly error if email fails internally,
-            // but you can monitor this in Cloudflare dashboard
-          } else {
-            console.log("Email sent successfully!");
+          if (!ownerEmailResponse.ok) {
+            const errText = await ownerEmailResponse.text();
+            console.error("Failed to send owner email:", errText);
+            return new Response(JSON.stringify({ success: false, error: "Email error: " + errText }), {
+              headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+              status: 500
+            });
           }
+
+          // 2. Send confirmation to customer (if email provided)
+          if (data.email) {
+            const customerEmailResponse = await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${env.RESEND_API_KEY}`
+              },
+              body: JSON.stringify({
+                from: 'S&E Clean <info@se-clean.de>',
+                to: data.email,
+                subject: `Eingangsbestätigung Ihrer Anfrage bei S&E Clean`,
+                html: `
+                  <h2>Vielen Dank für Ihre Anfrage!</h2>
+                  <p>Hallo ${data.name || ''},</p>
+                  <p>wir haben Ihre Kontaktanfrage erfolgreich erhalten und werden uns schnellstmöglich bei Ihnen melden.</p>
+                  <p><strong>Ihre übermittelten Daten:</strong></p>
+                  <p>Telefon: ${data.phone || 'Nicht angegeben'}</p>
+                  <p>Nachricht:<br>${(data.message || '').replace(/\n/g, '<br>')}</p>
+                  <br>
+                  <p>Mit freundlichen Grüßen<br>Ihr S&E Clean Team</p>
+                  <p><a href="https://www.se-clean.de">www.se-clean.de</a></p>
+                `
+              })
+            });
+            
+            if (!customerEmailResponse.ok) {
+               console.error("Failed to send customer confirmation:", await customerEmailResponse.text());
+            }
+          }
+
+          console.log("Emails processed successfully!");
         } else {
           console.warn("RESEND_API_KEY is not set. Email not sent. Received data:", data);
         }
