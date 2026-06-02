@@ -7,3 +7,10 @@ enabled = true
 
 [placement]
 mode = "smart"
+
+# KV Namespace for invoice storage
+# To create: wrangler kv namespace create "INVOICES"
+# Then replace the id below with the actual namespace ID
+[[kv_namespaces]]
+binding = "INVOICES"
+id = "d4e71da4eacc44d79e9b87c957961a6a"
