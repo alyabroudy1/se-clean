@@ -7,14 +7,18 @@
 const INVOICE_CONFIG = {
   company: {
     name: "S&E Clean",
-    address: "Im Siefchen 5",
-    city: "51643 Gummersbach",
+    addressLine1: "Im Siefchen 5",
+    addressLine2: "51643 Gummersbach",
+    telefon: "+49 152 261 26272",
+    email: "info@se-clean.de",
+    website: "www.se-clean.de",
     steuerNr: "48937160655",
     bankName: "Abdullah Al Refai",
     iban: "DE 86 3845 0000 1000 7557 75",
+    logoBase64: "", // Paste your base64 image string here (e.g., "data:image/png;base64,iVBOR...")
   },
   // Layout settings
-  margin: { top: 20, left: 20, right: 20, bottom: 20 },
+  margin: { top: 20, left: 20, right: 20, bottom: 40 },
   colors: {
     primary: [30, 58, 138],     // blue-900
     secondary: [100, 116, 139], // slate-500
@@ -28,7 +32,6 @@ const INVOICE_CONFIG = {
     normalSize: 10,
     smallSize: 8,
   },
-  kleinunternehmerHinweis: "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.",
 };
 
 /**
@@ -44,20 +47,32 @@ function generateInvoicePDF(invoiceData) {
   let y = cfg.margin.top;
 
   // --- Company Header ---
-  doc.setFontSize(cfg.fonts.titleSize);
-  doc.setTextColor(...cfg.colors.primary);
-  doc.setFont("helvetica", "bold");
-  doc.text(cfg.company.name, cfg.margin.left, y);
-  y += 7;
-
+  // Left side: Company details
   doc.setFontSize(cfg.fonts.smallSize);
   doc.setTextColor(...cfg.colors.secondary);
-  doc.setFont("helvetica", "normal");
-  doc.text(
-    `${cfg.company.address} | ${cfg.company.city} | St.-Nr.: ${cfg.company.steuerNr}`,
-    cfg.margin.left, y
-  );
+  doc.setFont("helvetica", "bold");
+  doc.text(cfg.company.name, cfg.margin.left, y);
   y += 4;
+  doc.setFont("helvetica", "normal");
+  doc.text(cfg.company.addressLine1, cfg.margin.left, y);
+  y += 4;
+  doc.text(cfg.company.addressLine2, cfg.margin.left, y);
+  y += 6;
+
+  // Contact Info
+  doc.text(`Tel: ${cfg.company.telefon} | E-Mail: ${cfg.company.email} | Web: ${cfg.company.website}`, cfg.margin.left, y);
+  y += 6;
+
+  // Right side: Logo
+  if (cfg.company.logoBase64) {
+    // Adjust dimensions (width, height) as needed
+    doc.addImage(cfg.company.logoBase64, "PNG", pageWidth - cfg.margin.right - 40, cfg.margin.top, 40, 20);
+  } else {
+    doc.setFontSize(cfg.fonts.titleSize);
+    doc.setTextColor(...cfg.colors.primary);
+    doc.setFont("helvetica", "bold");
+    doc.text(cfg.company.name, pageWidth - cfg.margin.right, cfg.margin.top + 8, { align: "right" });
+  }
 
   // Divider line
   doc.setDrawColor(...cfg.colors.primary);
@@ -79,10 +94,20 @@ function generateInvoicePDF(invoiceData) {
   }
   doc.text(customer.name, cfg.margin.left, y);
   y += 5;
-  const addressLines = customer.address.split("\n");
+  
+  // Split customer address by newline or comma
+  let addressLines = [];
+  if (customer.address.includes("\n")) {
+    addressLines = customer.address.split("\n");
+  } else {
+    addressLines = customer.address.split(",");
+  }
+  
   addressLines.forEach((line) => {
-    doc.text(line.trim(), cfg.margin.left, y);
-    y += 5;
+    if (line.trim()) {
+      doc.text(line.trim(), cfg.margin.left, y);
+      y += 5;
+    }
   });
 
   if (customer.phone) {
@@ -186,13 +211,6 @@ function generateInvoicePDF(invoiceData) {
   doc.text(formatCurrencyDE(invoiceData.total), totalsValueX, y + 4, { align: "right" });
   y += 14;
 
-  // --- Kleinunternehmer Notice ---
-  doc.setFontSize(cfg.fonts.smallSize);
-  doc.setFont("helvetica", "italic");
-  doc.setTextColor(...cfg.colors.secondary);
-  doc.text(cfg.kleinunternehmerHinweis, cfg.margin.left, y);
-  y += 10;
-
   // --- Hinweise ---
   if (invoiceData.hinweise && invoiceData.hinweise.trim()) {
     doc.setFontSize(cfg.fonts.normalSize);
@@ -207,33 +225,29 @@ function generateInvoicePDF(invoiceData) {
       pageWidth - cfg.margin.left - cfg.margin.right
     );
     doc.text(hinweisLines, cfg.margin.left, y);
-    y += hinweisLines.length * 5 + 8;
   }
 
-  // --- Bank Details (footer area) ---
-  // Check if we need a new page
-  if (y > 250) {
-    doc.addPage();
-    y = cfg.margin.top;
-  }
+  // --- Bank Details (footer area - always at bottom) ---
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const footerY = pageHeight - 30; // Position near the bottom
 
   doc.setDrawColor(...cfg.colors.secondary);
   doc.setLineWidth(0.3);
-  doc.line(cfg.margin.left, y, pageWidth - cfg.margin.right, y);
-  y += 6;
-
+  doc.line(cfg.margin.left, footerY, pageWidth - cfg.margin.right, footerY);
+  
+  let fy = footerY + 6;
   doc.setFontSize(cfg.fonts.smallSize);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...cfg.colors.primary);
-  doc.text("Bankverbindung:", cfg.margin.left, y);
-  y += 4;
+  doc.text("Bankverbindung:", cfg.margin.left, fy);
+  
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...cfg.colors.secondary);
-  doc.text(`Kontoinhaber: ${cfg.company.bankName}`, cfg.margin.left, y);
-  y += 4;
-  doc.text(`IBAN: ${cfg.company.iban}`, cfg.margin.left, y);
-  y += 4;
-  doc.text(`Steuer-Nr.: ${cfg.company.steuerNr}`, cfg.margin.left, y);
+  doc.text(`Kontoinhaber: ${cfg.company.bankName}`, cfg.margin.left + 30, fy);
+  fy += 4;
+  doc.text(`IBAN: ${cfg.company.iban}`, cfg.margin.left + 30, fy);
+  fy += 4;
+  doc.text(`Steuer-Nr.: ${cfg.company.steuerNr}`, cfg.margin.left + 30, fy);
 
   return doc;
 }
@@ -243,7 +257,8 @@ function generateInvoicePDF(invoiceData) {
  */
 function downloadInvoicePDF(invoiceData) {
   const doc = generateInvoicePDF(invoiceData);
-  doc.save(`Rechnung_${invoiceData.invoiceNumber}.pdf`);
+  const fileName = `Rechnung_${invoiceData.invoiceNumber}.pdf`;
+  doc.save(fileName);
 }
 
 // --- Formatting Helpers ---

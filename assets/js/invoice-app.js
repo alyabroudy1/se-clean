@@ -120,8 +120,8 @@ async function searchInvoice() {
     const invoice = data.invoice;
 
     if (invoice.versions.length === 1) {
-      // Single version — load directly into form
-      loadInvoiceIntoForm(invoice.invoiceNumber, invoice.versions[0]);
+      // Single version — show version list with download option
+      showVersionList(invoice);
     } else {
       // Multiple versions — show version list
       showVersionList(invoice);
@@ -410,18 +410,25 @@ function showVersionList(invoice) {
   invoice.versions.forEach((v, idx) => {
     const div = document.createElement("div");
     div.className = "flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all";
-    const dateStr = formatDateDE(v.date);
     const createdStr = new Date(v.createdAt).toLocaleString("de-DE");
+    const versionSuffix = v.version > 1 ? `-v${v.version}` : "";
     div.innerHTML = `
       <div>
         <span class="font-bold text-blue-900">Version ${v.version}</span>
         <span class="text-slate-500 text-sm ml-2">vom ${createdStr}</span>
         <span class="text-slate-600 text-sm ml-2">| ${v.customer.name} | ${v.total.toFixed(2).replace(".", ",")} €</span>
       </div>
-      <button onclick='loadVersionFromList("${invoice.invoiceNumber}", ${idx})'
-        class="bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-800 transition-colors">
-        Bearbeiten
-      </button>
+      <div class="flex gap-2">
+        <button onclick='downloadVersionFromList("${invoice.invoiceNumber}${versionSuffix}", ${idx})'
+          class="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          PDF
+        </button>
+        <button onclick='loadVersionFromList("${invoice.invoiceNumber}", ${idx})'
+          class="bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-800 transition-colors">
+          Bearbeiten
+        </button>
+      </div>
     `;
     list.appendChild(div);
   });
@@ -430,6 +437,16 @@ function showVersionList(invoice) {
 
   // Store invoice data for version loading
   window._loadedInvoice = invoice;
+}
+
+function downloadVersionFromList(invoiceNumberWithVersion, versionIndex) {
+  const invoice = window._loadedInvoice;
+  if (!invoice) return;
+  const v = invoice.versions[versionIndex];
+  downloadInvoicePDF({
+    ...v,
+    invoiceNumber: invoiceNumberWithVersion,
+  });
 }
 
 function loadVersionFromList(invoiceNumber, versionIndex) {
