@@ -180,6 +180,7 @@ async function submitInvoice() {
  */
 function createNewFromEdit() {
   // Collect current form data before switching
+  const custCompany = document.getElementById("cust-company").value;
   const custName = document.getElementById("cust-name").value;
   const custAddress = document.getElementById("cust-address").value;
   const custPhone = document.getElementById("cust-phone").value;
@@ -195,6 +196,7 @@ function createNewFromEdit() {
   fetchNextInvoiceNumber();
 
   // Keep customer data pre-filled
+  document.getElementById("cust-company").value = custCompany;
   document.getElementById("cust-name").value = custName;
   document.getElementById("cust-address").value = custAddress;
   document.getElementById("cust-phone").value = custPhone;
@@ -210,6 +212,7 @@ function createNewFromEdit() {
 
 function collectFormData() {
   const customer = {
+    companyName: document.getElementById("cust-company").value.trim(),
     name: document.getElementById("cust-name").value.trim(),
     address: document.getElementById("cust-address").value.trim(),
     phone: document.getElementById("cust-phone").value.trim(),
@@ -451,6 +454,7 @@ function loadInvoiceIntoForm(invoiceNumber, versionData) {
   // Fill form
   document.getElementById("inv-number").value = invoiceNumber;
   document.getElementById("inv-date").value = versionData.date || "";
+  document.getElementById("cust-company").value = versionData.customer?.companyName || "";
   document.getElementById("cust-name").value = versionData.customer?.name || "";
   document.getElementById("cust-address").value = versionData.customer?.address || "";
   document.getElementById("cust-phone").value = versionData.customer?.phone || "";
@@ -472,6 +476,7 @@ function loadInvoiceIntoForm(invoiceNumber, versionData) {
 
 function resetInvoiceForm() {
   document.getElementById("inv-date").value = new Date().toISOString().slice(0, 10);
+  document.getElementById("cust-company").value = "";
   document.getElementById("cust-name").value = "";
   document.getElementById("cust-address").value = "";
   document.getElementById("cust-phone").value = "";

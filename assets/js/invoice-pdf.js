@@ -71,6 +71,12 @@ function generateInvoicePDF(invoiceData) {
   doc.setFont("helvetica", "normal");
 
   const customer = invoiceData.customer;
+  if (customer.companyName) {
+    doc.setFont("helvetica", "bold");
+    doc.text(customer.companyName, cfg.margin.left, y);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+  }
   doc.text(customer.name, cfg.margin.left, y);
   y += 5;
   const addressLines = customer.address.split("\n");
