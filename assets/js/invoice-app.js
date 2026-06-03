@@ -572,7 +572,7 @@ function resetInvoiceForm() {
   document.getElementById("cust-address").value = "";
   document.getElementById("cust-phone").value = "";
   document.getElementById("cust-email").value = "";
-  document.getElementById("inv-hinweise").value = "Zahlbar innerhalb von 7 Tagen nach Rechnungseingang.";
+  document.getElementById("inv-hinweise").value = "Bitte überweisen Sie den Rechnungsbetrag innerhalb von 7 Tagen nach Erhalt der Rechnung.";
   document.getElementById("leistungen-body").innerHTML = "";
   addLeistungRow();
   clearInvoiceError();
