@@ -208,7 +208,7 @@ function generateInvoicePDF(invoiceData) {
     columnStyles: {
       datum: { cellWidth: 25 },
       menge: { cellWidth: 18, halign: "center" },
-      einheit: { cellWidth: 26, halign: "center" },
+      einheit: { cellWidth: 32, halign: "center" },
       beschreibung: { cellWidth: "auto" },
       einzelpreis: { cellWidth: 25, halign: "right" },
       gesamtpreis: { cellWidth: 25, halign: "right" },
