@@ -231,23 +231,42 @@ function collectFormData() {
   let subtotal = 0;
 
   for (let i = 0; i < rows.length; i++) {
-    const inputs = rows[i].querySelectorAll("input, select");
-    const datum = inputs[0].value.trim();
-    const arbeitszeit = inputs[1].value.trim();
-    const beschreibung = inputs[2].value;
-    const einzelpreis = parseDE(inputs[3].value);
-    const gesamtpreis = parseDE(inputs[4].value);
+    const datum = rows[i].querySelector("td:nth-child(1) input").value.trim();
+    const menge = parseDE(rows[i].querySelector("td:nth-child(2) input").value);
+    
+    const einheitSelect = rows[i].querySelector(".leistung-einheit");
+    const einheitCustom = rows[i].querySelector(".leistung-einheit-custom");
+    const einheit = einheitSelect.value === "Sonstige..." ? einheitCustom.value.trim() : einheitSelect.value;
 
+    const beschreibungSelect = rows[i].querySelector(".leistung-beschreibung");
+    const beschreibungCustom = rows[i].querySelector(".leistung-beschreibung-custom");
+    const beschreibung = beschreibungSelect.value === "Sonstige" ? beschreibungCustom.value.trim() : beschreibungSelect.value;
+
+    const einzelpreis = parseDE(rows[i].querySelector(".leistung-einzelpreis").value);
+    const gesamtpreis = parseDE(rows[i].querySelector(".leistung-gesamt").value);
+
+    if (einheitSelect.value === "Sonstige..." && !einheit) {
+      showInvoiceError(`Zeile ${i + 1}: Bitte eigene Einheit eingeben.`);
+      return null;
+    }
     if (!beschreibung) {
-      showInvoiceError(`Zeile ${i + 1}: Bitte Leistung auswählen.`);
+      showInvoiceError(`Zeile ${i + 1}: Bitte Leistung auswählen oder eingeben.`);
       return null;
     }
     if (einzelpreis <= 0) {
-      showInvoiceError(`Zeile ${i + 1}: Stundensatz muss größer als 0 sein.`);
+      showInvoiceError(`Zeile ${i + 1}: Einzelpreis muss größer als 0 sein.`);
       return null;
     }
 
-    leistungen.push({ datum, arbeitszeit, beschreibung, einzelpreis, gesamtpreis });
+    leistungen.push({
+      datum,
+      menge,
+      einheit,
+      beschreibung,
+      einzelpreis,
+      gesamtpreis,
+      arbeitszeit: menge, // backward compatibility
+    });
     subtotal += gesamtpreis;
   }
 
@@ -285,31 +304,58 @@ const LEISTUNG_TYPES = [
   "Sonstige",
 ];
 
+const EINHEIT_TYPES = [
+  "Std.",
+  "Pauschale",
+  "Sonstige...",
+];
+
 function addLeistungRow(data) {
   const tbody = document.getElementById("leistungen-body");
   const tr = document.createElement("tr");
   tr.className = "border-b border-slate-200 hover:bg-slate-50 transition-colors";
 
   const datumVal = data ? data.datum || "" : "";
-  const arbeitszeitVal = data ? data.arbeitszeit || "" : "";
+  const mengeVal = data ? (data.menge !== undefined ? data.menge : (data.arbeitszeit || "")) : "";
+  
+  const einheitVal = data ? (data.einheit || "Std.") : "Std.";
+  const isStandardEinheit = EINHEIT_TYPES.includes(einheitVal) && einheitVal !== "Sonstige...";
+  const selectEinheitVal = data ? (isStandardEinheit ? einheitVal : "Sonstige...") : "Std.";
+  const customEinheitVal = data ? (isStandardEinheit ? "" : einheitVal) : "";
+
   const beschreibungVal = data ? data.beschreibung || "" : "";
+  const isStandardBeschreibung = LEISTUNG_TYPES.includes(beschreibungVal) && beschreibungVal !== "Sonstige";
+  const selectBeschreibungVal = data ? (isStandardBeschreibung ? beschreibungVal : "Sonstige") : "";
+  const customBeschreibungVal = data ? (isStandardBeschreibung ? "" : beschreibungVal) : "";
+
   const einzelpreisVal = data ? formatDE(data.einzelpreis) : "";
   const gesamtpreisVal = data ? formatDE(data.gesamtpreis) : "";
 
   const optionsHtml = LEISTUNG_TYPES.map(
-    (t) => `<option value="${t}" ${t === beschreibungVal ? "selected" : ""}>${t}</option>`
+    (t) => `<option value="${t}" ${t === selectBeschreibungVal ? "selected" : ""}>${t}</option>`
+  ).join("");
+
+  const einheitOptionsHtml = EINHEIT_TYPES.map(
+    (u) => `<option value="${u}" ${u === selectEinheitVal ? "selected" : ""}>${u}</option>`
   ).join("");
 
   tr.innerHTML = `
     <td class="p-2"><input type="date" value="${datumVal}" class="w-full p-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 outline-none"></td>
-    <td class="p-2"><input type="text" value="${arbeitszeitVal}" placeholder="z.B. 3,5" class="leistung-arbeitszeit w-full p-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 outline-none" inputmode="decimal"></td>
+    <td class="p-2"><input type="text" value="${mengeVal}" placeholder="z.B. 1" class="leistung-menge w-full p-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 outline-none" inputmode="decimal"></td>
     <td class="p-2">
-      <select class="w-full p-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+      <select class="leistung-einheit w-full p-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+        ${einheitOptionsHtml}
+      </select>
+      <input type="text" value="${customEinheitVal}" placeholder="Einheit..." class="leistung-einheit-custom hidden w-full mt-1 p-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+    </td>
+    <td class="p-2">
+      <select class="leistung-beschreibung w-full p-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
         <option value="">— Auswählen —</option>
         ${optionsHtml}
       </select>
+      <input type="text" value="${customBeschreibungVal}" placeholder="Eigene Leistung..." class="leistung-beschreibung-custom hidden w-full mt-1 p-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
     </td>
-    <td class="p-2"><input type="text" value="${einzelpreisVal}" placeholder="35,00" class="leistung-stundensatz w-full p-2 rounded-lg border border-slate-300 text-sm text-right focus:ring-2 focus:ring-blue-500 outline-none" inputmode="decimal"></td>
+    <td class="p-2"><input type="text" value="${einzelpreisVal}" placeholder="35,00" class="leistung-einzelpreis w-full p-2 rounded-lg border border-slate-300 text-sm text-right focus:ring-2 focus:ring-blue-500 outline-none" inputmode="decimal"></td>
     <td class="p-2"><input type="text" value="${gesamtpreisVal}" placeholder="0,00" class="leistung-gesamt w-full p-2 rounded-lg border border-slate-300 text-sm text-right bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none" inputmode="decimal"></td>
     <td class="p-2 text-center">
       <button type="button" onclick="removeLeistungRow(this)" class="text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg p-1 transition-colors" title="Zeile entfernen">
@@ -318,16 +364,44 @@ function addLeistungRow(data) {
     </td>
   `;
 
+  // Dynamic input toggles for custom values
+  const einheitSelect = tr.querySelector(".leistung-einheit");
+  const einheitCustom = tr.querySelector(".leistung-einheit-custom");
+  const beschreibungSelect = tr.querySelector(".leistung-beschreibung");
+  const beschreibungCustom = tr.querySelector(".leistung-beschreibung-custom");
+
+  const toggleEinheitCustom = () => {
+    if (einheitSelect.value === "Sonstige...") {
+      einheitCustom.classList.remove("hidden");
+    } else {
+      einheitCustom.classList.add("hidden");
+    }
+  };
+
+  const toggleBeschreibungCustom = () => {
+    if (beschreibungSelect.value === "Sonstige") {
+      beschreibungCustom.classList.remove("hidden");
+    } else {
+      beschreibungCustom.classList.add("hidden");
+    }
+  };
+
+  toggleEinheitCustom();
+  toggleBeschreibungCustom();
+
+  einheitSelect.addEventListener("change", toggleEinheitCustom);
+  beschreibungSelect.addEventListener("change", toggleBeschreibungCustom);
+
   // Add blur event listeners for auto-calculation
-  const arbeitszeitInput = tr.querySelector(".leistung-arbeitszeit");
-  const stundensatzInput = tr.querySelector(".leistung-stundensatz");
+  const mengeInput = tr.querySelector(".leistung-menge");
+  const einzelpreisInput = tr.querySelector(".leistung-einzelpreis");
   const gesamtInput = tr.querySelector(".leistung-gesamt");
 
-  arbeitszeitInput.addEventListener("blur", () => recalcRowFromTr(tr));
-  stundensatzInput.addEventListener("blur", () => recalcRowFromTr(tr));
+  mengeInput.addEventListener("blur", () => recalcRowFromTr(tr));
+  einzelpreisInput.addEventListener("blur", () => recalcRowFromTr(tr));
   // Also recalc on Enter key
-  arbeitszeitInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); recalcRowFromTr(tr); stundensatzInput.focus(); } });
-  stundensatzInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); recalcRowFromTr(tr); } });
+  mengeInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); recalcRowFromTr(tr); einzelpreisInput.focus(); } });
+  einzelpreisInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); recalcRowFromTr(tr); } });
   // Manual edit of Gesamt updates total
   gesamtInput.addEventListener("blur", () => recalcTotal());
 
@@ -366,18 +440,18 @@ function formatDE(value) {
 }
 
 /**
- * Recalculate a single row's Gesamt from Arbeitszeit × Stundensatz
+ * Recalculate a single row's Gesamt from Menge × Einzelpreis
  */
 function recalcRowFromTr(tr) {
-  const arbeitszeitInput = tr.querySelector(".leistung-arbeitszeit");
-  const stundensatzInput = tr.querySelector(".leistung-stundensatz");
+  const mengeInput = tr.querySelector(".leistung-menge");
+  const einzelpreisInput = tr.querySelector(".leistung-einzelpreis");
   const gesamtInput = tr.querySelector(".leistung-gesamt");
 
-  const arbeitszeit = parseDE(arbeitszeitInput.value);
-  const einzelpreis = parseDE(stundensatzInput.value);
+  const menge = parseDE(mengeInput.value);
+  const einzelpreis = parseDE(einzelpreisInput.value);
 
-  if (arbeitszeit > 0 && einzelpreis > 0) {
-    const gesamt = arbeitszeit * einzelpreis;
+  if (menge > 0 && einzelpreis > 0) {
+    const gesamt = menge * einzelpreis;
     gesamtInput.value = formatDE(gesamt);
   }
   recalcTotal();
@@ -498,7 +572,7 @@ function resetInvoiceForm() {
   document.getElementById("cust-address").value = "";
   document.getElementById("cust-phone").value = "";
   document.getElementById("cust-email").value = "";
-  document.getElementById("inv-hinweise").value = "Zahlbar innerhalb von 14 Tagen nach Rechnungseingang.";
+  document.getElementById("inv-hinweise").value = "Zahlbar innerhalb von 7 Tagen nach Rechnungseingang.";
   document.getElementById("leistungen-body").innerHTML = "";
   addLeistungRow();
   clearInvoiceError();
